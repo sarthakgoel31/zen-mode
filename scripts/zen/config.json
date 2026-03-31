@@ -1,0 +1,38 @@
+{
+  "trigger_probability": 12,
+  "idle_threshold_seconds": 45,
+  "cooldown_minutes": 25,
+  "min_duration_seconds": 120,
+  "max_duration_seconds": 180,
+  "sound_enabled": true,
+  "voice_enabled": true,
+  "voice_name": "Samantha",
+  "voice_rate": 130,
+  "preferred_types": [
+    "breathing",
+    "body_scan",
+    "quotes"
+  ],
+  "elevenlabs_api_key": "REDACTED",
+  "elevenlabs_voice_id": "REDACTED",
+  "breathing_patterns": {
+    "box": {
+      "in": 4,
+      "hold_in": 4,
+      "out": 4,
+      "hold_out": 4
+    },
+    "relaxing": {
+      "in": 4,
+      "hold_in": 7,
+      "out": 8,
+      "hold_out": 0
+    },
+    "coherent": {
+      "in": 6,
+      "hold_in": 0,
+      "out": 6,
+      "hold_out": 0
+    }
+  }
+}

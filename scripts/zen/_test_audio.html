@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head><title>Audio Test</title></head>
+<body style="background:#111;color:#fff;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:2rem;">
+<h1 id="status">Click the button to test audio</h1>
+<button onclick="testAudio()" style="padding:2rem 4rem;font-size:2rem;cursor:pointer;">
+  PLAY AUDIO
+</button>
+<pre id="log" style="color:#0f0;font-size:14px;max-width:600px;"></pre>
+<script>
+function log(msg) {
+    document.getElementById('log').textContent += msg + '\n';
+    console.log(msg);
+}
+
+function testAudio() {
+    document.getElementById('status').textContent = 'Testing...';
+    
+    // Test 1: MP3 via Audio element
+    log('Test 1: new Audio("sounds/waterfall.mp3")');
+    const a1 = new Audio('sounds/waterfall.mp3');
+    a1.volume = 0.5;
+    a1.play().then(() => {
+        log('  ✅ MP3 Audio playing!');
+        document.getElementById('status').textContent = 'MP3 PLAYING - do you hear it?';
+    }).catch(e => {
+        log('  ❌ MP3 failed: ' + e.message);
+        
+        // Test 2: Video element with audio
+        log('Test 2: <video> element unmuted');
+        const v = document.createElement('video');
+        v.src = 'videos/waterfall.mp4';
+        v.volume = 0.5;
+        v.play().then(() => {
+            log('  ✅ Video with audio playing!');
+            document.getElementById('status').textContent = 'VIDEO AUDIO PLAYING - do you hear it?';
+        }).catch(e2 => {
+            log('  ❌ Video failed: ' + e2.message);
+            
+            // Test 3: Web Audio API
+            log('Test 3: Web Audio API fetch + decode');
+            const ctx = new AudioContext();
+            fetch('sounds/waterfall.mp3')
+                .then(r => r.arrayBuffer())
+                .then(buf => ctx.decodeAudioData(buf))
+                .then(decoded => {
+                    const src = ctx.createBufferSource();
+                    src.buffer = decoded;
+                    const gain = ctx.createGain();
+                    gain.gain.value = 0.5;
+                    src.connect(gain);
+                    gain.connect(ctx.destination);
+                    src.start();
+                    log('  ✅ Web Audio API playing!');
+                    document.getElementById('status').textContent = 'WEB AUDIO PLAYING - do you hear it?';
+                })
+                .catch(e3 => {
+                    log('  ❌ Web Audio failed: ' + e3.message);
+                    document.getElementById('status').textContent = 'ALL METHODS FAILED';
+                });
+        });
+    });
+}
+</script>
+</body>
+</html>

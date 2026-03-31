@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>zen — ambient</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #000;
+            height: 100vh;
+            overflow: hidden;
+            cursor: none;
+            user-select: none;
+        }
+        video {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+        }
+        #start {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.7);
+            cursor: pointer;
+            transition: opacity 1.5s ease;
+        }
+        #start.hidden { opacity: 0; pointer-events: none; }
+        #start p {
+            color: rgba(255,255,255,0.5);
+            font-family: -apple-system, system-ui, sans-serif;
+            font-size: 0.85rem;
+            letter-spacing: 0.3em;
+            font-weight: 300;
+        }
+    </style>
+</head>
+<body>
+    <video id="bg" loop playsinline></video>
+    <div id="start" onclick="begin()"><p>tap to begin</p></div>
+
+    <script>const VIDEO_PATH = 'videos/waterfall.mp4';</script>
+    <script>const AUDIO_PATH = 'sounds/waterfall.mp3';</script>
+
+    <script>
+    const vid = document.getElementById('bg');
+    if (VIDEO_PATH) { vid.src = VIDEO_PATH; vid.muted = true; vid.play().catch(()=>{}); }
+
+    function begin() {
+        document.getElementById('start').classList.add('hidden');
+        // Play audio
+        if (AUDIO_PATH) {
+            window._bg = new Audio(AUDIO_PATH);
+            window._bg.loop = true;
+            window._bg.volume = 0;
+            window._bg.play().then(() => {
+                let v = 0;
+                const fi = setInterval(() => {
+                    v += 0.005;
+                    if (v >= 0.5) { window._bg.volume = 0.5; clearInterval(fi); return; }
+                    window._bg.volume = v;
+                }, 50);
+            });
+        }
+        // Unmute video too (in case audio is in video)
+        vid.muted = false;
+        vid.volume = 0.5;
+        vid.play();
+        // Fullscreen
+        try { document.documentElement.requestFullscreen(); } catch(e) {}
+    }
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' || e.key === 'q') {
+            if (window._bg) { window._bg.pause(); }
+            try { window.close(); } catch(e) {}
+        }
+    });
+    </script>
+</body>
+</html>

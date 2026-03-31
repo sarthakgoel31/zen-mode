@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>zen</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-1: #0d1117;
+            --bg-2: #161b22;
+            --bg-3: #1a2332;
+            --accent: rgba(100, 180, 255, 0.8);
+            --accent-glow: rgba(100, 180, 255, 0.12);
+            --text: rgba(230, 237, 243, 0.9);
+            --text-dim: rgba(230, 237, 243, 0.35);
+            --text-phase: rgba(100, 180, 255, 0.9);
+        }
+
+        .theme-ocean {
+            --bg-1: #0a192f; --bg-2: #112240; --bg-3: #1a3a5c;
+            --accent: rgba(100, 255, 218, 0.8);
+            --accent-glow: rgba(100, 255, 218, 0.12);
+            --text-phase: rgba(100, 255, 218, 0.9);
+        }
+        .theme-forest {
+            --bg-1: #0d1a0d; --bg-2: #152415; --bg-3: #1e3a1e;
+            --accent: rgba(156, 204, 156, 0.8);
+            --accent-glow: rgba(156, 204, 156, 0.12);
+            --text-phase: rgba(156, 204, 156, 0.9);
+        }
+        .theme-waterfall {
+            --bg-1: #0d1a1a; --bg-2: #15292a; --bg-3: #1e3a3a;
+            --accent: rgba(130, 210, 220, 0.8);
+            --accent-glow: rgba(130, 210, 220, 0.12);
+            --text-phase: rgba(130, 210, 220, 0.9);
+        }
+        .theme-spring {
+            --bg-1: #1a0d1a; --bg-2: #2a1530; --bg-3: #3a1e3a;
+            --accent: rgba(240, 180, 210, 0.8);
+            --accent-glow: rgba(240, 180, 210, 0.12);
+            --text-phase: rgba(240, 180, 210, 0.9);
+        }
+
+        body {
+            background: linear-gradient(160deg, var(--bg-1), var(--bg-2), var(--bg-3));
+            color: var(--text);
+            font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: default;
+            user-select: none;
+        }
+
+        /* ── Video background ─────────────────────── */
+        #video-bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            z-index: 0;
+            opacity: 0;
+            transition: opacity 2s ease;
+        }
+        #video-bg.loaded { opacity: 1; }
+
+        #video-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* ── Start overlay ─────────────────────────── */
+        #start-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            background: linear-gradient(160deg, var(--bg-1), var(--bg-2));
+            cursor: pointer;
+            transition: opacity 1.5s ease;
+        }
+        #start-overlay.hidden { opacity: 0; pointer-events: none; }
+        #start-overlay h1 {
+            font-size: 1.2rem;
+            font-weight: 300;
+            letter-spacing: 0.6em;
+            text-transform: lowercase;
+            color: var(--text);
+        }
+        #start-overlay p {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            letter-spacing: 0.15em;
+        }
+
+        /* ── Meditation container ──────────────────── */
+        #meditation {
+            position: relative;
+            z-index: 10;
+            text-shadow: 0 1px 8px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2.5rem;
+            opacity: 0;
+            transition: opacity 2s ease;
+        }
+        #meditation.visible { opacity: 1; }
+
+        #title {
+            font-size: 0.8rem;
+            letter-spacing: 0.6em;
+            text-transform: lowercase;
+            color: var(--text-dim);
+        }
+
+        /* ── Breathing circle ──────────────────────── */
+        #circle {
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            border: 1.5px solid var(--accent);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            box-shadow:
+                0 0 50px var(--accent-glow),
+                0 0 100px var(--accent-glow),
+                inset 0 0 50px var(--accent-glow);
+            transform: scale(0.5);
+        }
+
+        #phase-text {
+            font-size: 0.65rem;
+            letter-spacing: 0.4em;
+            text-transform: lowercase;
+            color: var(--text-phase);
+            font-weight: 300;
+        }
+
+        #countdown {
+            font-size: 2.8rem;
+            font-weight: 200;
+            color: var(--text);
+            line-height: 1;
+            opacity: 0.8;
+        }
+
+        /* ── Guidance text (body scan & quotes) ────── */
+        #guidance {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            text-align: center;
+            max-width: 480px;
+            opacity: 0;
+            transition: opacity 1.5s ease;
+        }
+        #guidance.visible { opacity: 1; }
+        .region-label {
+            font-size: 0.7rem;
+            letter-spacing: 0.4em;
+            text-transform: lowercase;
+            color: var(--text-phase);
+            font-weight: 300;
+        }
+        .guidance-body {
+            font-size: 1.15rem;
+            font-weight: 300;
+            line-height: 2;
+            color: var(--text);
+        }
+        .quote-text {
+            font-size: 1.4rem;
+            font-weight: 300;
+            line-height: 2;
+            color: var(--text);
+            font-style: italic;
+        }
+        .quote-author {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            letter-spacing: 0.2em;
+            margin-top: 0.5rem;
+        }
+        .reflection {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            font-weight: 300;
+            font-style: italic;
+            margin-top: 1rem;
+        }
+
+        /* ── Timer ─────────────────────────────────── */
+        #timer {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            letter-spacing: 0.3em;
+            font-weight: 300;
+        }
+
+        /* ── Progress ──────────────────────────────── */
+        #progress {
+            position: fixed;
+            bottom: 3rem;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 180px;
+            height: 1.5px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 1px;
+            overflow: hidden;
+            z-index: 20;
+        }
+        #progress-fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            opacity: 0.5;
+            transition: width 1s linear;
+        }
+
+        /* ── Skip button ───────────────────────────── */
+        #skip-btn {
+            position: fixed;
+            bottom: 1.2rem;
+            right: 1.5rem;
+            background: none;
+            border: 1px solid rgba(255,255,255,0.08);
+            color: var(--text-dim);
+            font-size: 0.7rem;
+            padding: 0.35rem 0.9rem;
+            border-radius: 20px;
+            cursor: pointer;
+            z-index: 30;
+            letter-spacing: 0.1em;
+            font-family: inherit;
+            transition: border-color 0.3s, color 0.3s, opacity 0.3s;
+            opacity: 0;
+        }
+        #skip-btn.visible { opacity: 1; }
+        #skip-btn:hover { border-color: rgba(255,255,255,0.25); color: var(--text); }
+
+        /* ── Completion ────────────────────────────── */
+        #completion {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+            opacity: 0;
+            transition: opacity 2.5s ease;
+        }
+        #completion h2 {
+            font-size: 1rem;
+            font-weight: 300;
+            letter-spacing: 0.4em;
+            color: var(--text);
+        }
+        #completion p {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            font-weight: 300;
+        }
+    </style>
+</head>
+<body>
+    <video id="video-bg" autoplay loop muted playsinline></video>
+    <div id="video-overlay"></div>
+    <canvas id="nature-canvas"></canvas>
+
+    <div id="start-overlay" onclick="beginSession()">
+        <h1>zen</h1>
+        <p>tap anywhere to begin</p>
+    </div>
+
+    <div id="meditation">
+        <div id="title">zen</div>
+        <div id="circle">
+            <div id="phase-text">breathe in</div>
+            <div id="countdown">4</div>
+        </div>
+        <div id="guidance"></div>
+        <div id="timer"></div>
+    </div>
+
+    <div id="completion">
+        <h2>session complete</h2>
+        <p>carry this calm with you</p>
+    </div>
+
+    <div id="progress"><div id="progress-fill"></div></div>
+    <button id="skip-btn" onclick="endSession()">end session</button>
+
+    <!-- Injected by zen.py: voice data, video path, video-has-audio flag -->
+    <script>const VOICE_DATA = {};</script>
+    <script>const VIDEO_PATH = '';</script>
+    <script>const USE_VIDEO_AUDIO = false;</script>
+    <script>const AUDIO_PATH = '';</script>
+
+    <script>
+    // ─── Config ─────────────────────────────────────────────
+    const params = new URLSearchParams(window.location.search);
+    const THEMES = ['rain', 'ocean', 'forest', 'waterfall', 'river', 'night', 'thunderstorm', 'campfire', 'spring'];
+    const TYPES = ['breathing', 'body_scan', 'quotes', 'gratitude', 'visualization', 'metta', 'affirmation'];
+    const CONFIG = {
+        theme: params.get('theme') || THEMES[Math.floor(Math.random() * THEMES.length)],
+        duration: parseInt(params.get('duration')) || 120,
+        type: params.get('type') || TYPES[Math.floor(Math.random() * TYPES.length)],
+    };
+
+    document.body.classList.add('theme-' + CONFIG.theme);
+
+    // ─── DOM refs ───────────────────────────────────────────
+    const cvs = document.getElementById('nature-canvas');
+    const cx = cvs.getContext('2d');
+    const circleEl = document.getElementById('circle');
+    const phaseTextEl = document.getElementById('phase-text');
+    const countdownEl = document.getElementById('countdown');
+    const guidanceEl = document.getElementById('guidance');
+    const timerEl = document.getElementById('timer');
+    const progressFill = document.getElementById('progress-fill');
+    const meditationEl = document.getElementById('meditation');
+    const completionEl = document.getElementById('completion');
+    const startOverlay = document.getElementById('start-overlay');
+    const skipBtn = document.getElementById('skip-btn');
+
+    // ─── Video background ────────────────────────────────────
+    const videoBg = document.getElementById('video-bg');
+    if (VIDEO_PATH) {
+        videoBg.src = VIDEO_PATH;
+        // Video starts muted via HTML autoplay attribute (plays visually)
+        videoBg.addEventListener('canplay', () => videoBg.classList.add('loaded'));
+        videoBg.addEventListener('error', () => { /* canvas fallback */ });
+    }
+
+    // ─── Canvas resize ──────────────────────────────────────
+    function resize() { cvs.width = innerWidth; cvs.height = innerHeight; }
+    resize();
+    addEventListener('resize', resize);
+
+    // ═══════════════════════════════════════════════════════════
+    //  NATURE SCENE — Canvas animations per theme
+    // ═══════════════════════════════════════════════════════════
+    let particles = [];
+
+    function initScene() {
+        particles = [];
+        if (CONFIG.theme === 'rain') {
+            for (let i = 0; i < 180; i++) particles.push({
+                x: Math.random() * cvs.width,
+                y: Math.random() * cvs.height,
+                len: 12 + Math.random() * 22,
+                speed: 5 + Math.random() * 7,
+                opacity: 0.06 + Math.random() * 0.12,
+                w: 0.4 + Math.random() * 0.6,
+            });
+        } else if (CONFIG.theme === 'forest') {
+            for (let i = 0; i < 35; i++) particles.push({
+                x: Math.random() * cvs.width,
+                y: Math.random() * cvs.height,
+                r: 1 + Math.random() * 2.5,
+                vx: (Math.random() - 0.5) * 0.25,
+                vy: (Math.random() - 0.5) * 0.15,
+                phase: Math.random() * Math.PI * 2,
+            });
+        } else if (CONFIG.theme === 'waterfall') {
+            for (let i = 0; i < 55; i++) particles.push({
+                x: Math.random() * cvs.width,
+                y: Math.random() * cvs.height,
+                r: 0.8 + Math.random() * 1.5,
+                speed: 0.4 + Math.random() * 1.2,
+                sway: Math.random() * Math.PI * 2,
+                opacity: 0.04 + Math.random() * 0.1,
+            });
+        }
+    }
+
+    function drawScene(t) {
+        cx.clearRect(0, 0, cvs.width, cvs.height);
+        const s = t * 0.001;
+
+        if (CONFIG.theme === 'rain') {
+            for (const p of particles) {
+                cx.beginPath();
+                cx.moveTo(p.x, p.y);
+                cx.lineTo(p.x + 0.4, p.y + p.len);
+                cx.strokeStyle = `rgba(174, 194, 224, ${p.opacity})`;
+                cx.lineWidth = p.w;
+                cx.stroke();
+                p.y += p.speed;
+                if (p.y > cvs.height + p.len) { p.y = -p.len; p.x = Math.random() * cvs.width; }
+            }
+        } else if (CONFIG.theme === 'ocean') {
+            for (let layer = 0; layer < 5; layer++) {
+                cx.beginPath();
+                const base = cvs.height * 0.52 + layer * 32;
+                const amp = 22 - layer * 3;
+                const freq = 0.0025 + layer * 0.0008;
+                const sp = s * (0.25 + layer * 0.12);
+                for (let x = 0; x <= cvs.width; x += 3) {
+                    const y = base
+                        + Math.sin(x * freq + sp) * amp
+                        + Math.sin(x * freq * 2.3 + sp * 1.3) * amp * 0.35
+                        + Math.sin(x * freq * 0.6 + sp * 0.5) * amp * 0.25;
+                    x === 0 ? cx.moveTo(x, y) : cx.lineTo(x, y);
+                }
+                cx.lineTo(cvs.width, cvs.height);
+                cx.lineTo(0, cvs.height);
+                cx.closePath();
+                cx.fillStyle = `rgba(80, 180, 200, ${0.06 - layer * 0.01})`;
+                cx.fill();
+            }
+        } else if (CONFIG.theme === 'forest') {
+            for (const p of particles) {
+                const pulse = Math.sin(s * 0.4 + p.phase) * 0.5 + 0.5;
+                const r = p.r * (0.7 + pulse * 0.5);
+                const a = (0.08 + pulse * 0.12);
+                cx.beginPath();
+                cx.arc(p.x, p.y, r, 0, Math.PI * 2);
+                cx.fillStyle = `rgba(170, 210, 140, ${a})`;
+                cx.fill();
+                p.x += p.vx; p.y += p.vy;
+                if (p.x < -10) p.x = cvs.width + 10;
+                if (p.x > cvs.width + 10) p.x = -10;
+                if (p.y < -10) p.y = cvs.height + 10;
+                if (p.y > cvs.height + 10) p.y = -10;
+            }
+        } else if (CONFIG.theme === 'waterfall') {
+            for (const p of particles) {
+                const sway = Math.sin(s * 0.25 + p.sway) * 15;
+                cx.beginPath();
+                cx.arc(p.x, p.y + sway, p.r, 0, Math.PI * 2);
+                cx.fillStyle = `rgba(190, 205, 220, ${p.opacity})`;
+                cx.fill();
+                p.x += p.speed;
+                if (p.x > cvs.width + 10) { p.x = -10; p.y = Math.random() * cvs.height; }
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  NATURE SOUND — Web Audio API
+    // ═══════════════════════════════════════════════════════════
+    let audioCtx, masterGain;
+
+    function startSound() {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const sr = audioCtx.sampleRate;
+        const len = sr * 8;
+        const buf = audioCtx.createBuffer(2, len, sr);
+
+        for (let ch = 0; ch < 2; ch++) {
+            const d = buf.getChannelData(ch);
+            if (CONFIG.theme === 'ocean') {
+                // Brown noise (integrated white noise)
+                let last = 0;
+                for (let i = 0; i < len; i++) {
+                    const w = Math.random() * 2 - 1;
+                    d[i] = (last + 0.02 * w) / 1.02;
+                    last = d[i];
+                    d[i] *= 3.5;
+                }
+            } else {
+                // White noise base
+                for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+            }
+        }
+
+        const src = audioCtx.createBufferSource();
+        src.buffer = buf;
+        src.loop = true;
+        let node = src;
+
+        if (CONFIG.theme === 'rain') {
+            // Low-pass → warm rain patter
+            const lp = audioCtx.createBiquadFilter();
+            lp.type = 'lowpass'; lp.frequency.value = 450; lp.Q.value = 0.6;
+            node.connect(lp); node = lp;
+            // Subtle high-pass to remove rumble
+            const hp = audioCtx.createBiquadFilter();
+            hp.type = 'highpass'; hp.frequency.value = 60;
+            node.connect(hp); node = hp;
+        } else if (CONFIG.theme === 'ocean') {
+            // Low-pass for deep ocean
+            const lp = audioCtx.createBiquadFilter();
+            lp.type = 'lowpass'; lp.frequency.value = 220;
+            node.connect(lp); node = lp;
+            // Slow wave modulation
+            const waveGain = audioCtx.createGain();
+            waveGain.gain.value = 0.75;
+            const lfo = audioCtx.createOscillator();
+            const lfoAmp = audioCtx.createGain();
+            lfo.frequency.value = 0.055;
+            lfoAmp.gain.value = 0.25;
+            lfo.connect(lfoAmp); lfoAmp.connect(waveGain.gain); lfo.start();
+            node.connect(waveGain); node = waveGain;
+        } else if (CONFIG.theme === 'forest') {
+            // Band-pass for rustling leaves
+            const bp = audioCtx.createBiquadFilter();
+            bp.type = 'bandpass'; bp.frequency.value = 1100; bp.Q.value = 0.4;
+            node.connect(bp); node = bp;
+        } else if (CONFIG.theme === 'waterfall') {
+            // Waterfall: mid-range white noise (rushing water)
+            const lp = audioCtx.createBiquadFilter();
+            lp.type = 'lowpass'; lp.frequency.value = 800; lp.Q.value = 0.3;
+            node.connect(lp); node = lp;
+            const hp = audioCtx.createBiquadFilter();
+            hp.type = 'highpass'; hp.frequency.value = 80;
+            node.connect(hp); node = hp;
+        }
+
+        // Master volume — fade in over 3 seconds
+        masterGain = audioCtx.createGain();
+        masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        masterGain.gain.linearRampToValueAtTime(0.28, audioCtx.currentTime + 3);
+        node.connect(masterGain);
+        masterGain.connect(audioCtx.destination);
+        src.start();
+    }
+
+    function fadeOutSound() {
+        // Fade out Web Audio if active
+        if (masterGain && audioCtx) {
+            masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 3);
+            setTimeout(() => { try { audioCtx.close(); } catch(e) {} }, 4000);
+        }
+        // Fade out background nature audio
+        if (window._bgAudio) {
+            let vol = window._bgAudio.volume;
+            const fadeOut = setInterval(() => {
+                vol -= 0.01;
+                if (vol <= 0) { window._bgAudio.pause(); clearInterval(fadeOut); return; }
+                window._bgAudio.volume = vol;
+            }, 50);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  VOICE PLAYBACK (from embedded base64 data)
+    // ═══════════════════════════════════════════════════════════
+    function playVoice(name) {
+        return new Promise(resolve => {
+            if (!VOICE_DATA[name]) { resolve(); return; }
+            const audio = new Audio(VOICE_DATA[name]);
+            audio.volume = 0.9;
+            audio.onended = resolve;
+            audio.onerror = resolve;
+            audio.play().catch(resolve);
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  MEDITATION LOGIC
+    // ═══════════════════════════════════════════════════════════
+    const PATTERNS = {
+        box:      [{ p:'in', l:'breathe in', d:4 }, { p:'hold_in', l:'hold', d:4 }, { p:'out', l:'breathe out', d:4 }, { p:'hold_out', l:'rest', d:4 }],
+        relaxing: [{ p:'in', l:'breathe in', d:4 }, { p:'hold_in', l:'hold', d:7 }, { p:'out', l:'breathe out', d:8 }],
+        coherent: [{ p:'in', l:'breathe in', d:6 }, { p:'out', l:'breathe out', d:6 }],
+    };
+
+    const BODY_SCAN = [
+        { region: 'crown & forehead', text: 'Bring your awareness to the top of your head.<br>Notice any sensations. Let your forehead soften.', voice: 'scan_head' },
+        { region: 'eyes & jaw', text: 'Relax the muscles around your eyes.<br>Unclench your jaw. Let your tongue rest.', voice: 'scan_face' },
+        { region: 'shoulders', text: 'Drop your shoulders away from your ears.<br>Feel the weight releasing with each exhale.', voice: 'scan_shoulders' },
+        { region: 'hands', text: 'Notice your hands, wherever they are.<br>Let any tension dissolve like warmth spreading.', voice: 'scan_hands' },
+        { region: 'chest', text: 'Feel your chest rise and fall with each breath.<br>Let each exhale carry away a little more tension.', voice: 'scan_chest' },
+        { region: 'belly', text: 'Soften your belly completely.<br>There\'s nothing to hold. Let it be free.', voice: 'scan_belly' },
+        { region: 'feet & ground', text: 'Feel your connection to the earth below.<br>You are supported. You are here.', voice: 'scan_feet' },
+    ];
+
+    const QUOTES = [
+        { text: 'Between stimulus and response<br>there is a space.<br>In that space is our freedom.', author: 'Viktor Frankl', voice: 'quote_0' },
+        { text: 'Nature does not hurry,<br>yet everything is accomplished.', author: 'Lao Tzu', voice: 'quote_1' },
+        { text: 'You are the sky.<br>Everything else is just the weather.', author: 'Pema Chödrön', voice: 'quote_2' },
+        { text: 'The quieter you become,<br>the more you can hear.', author: 'Ram Dass', voice: 'quote_3' },
+        { text: 'Smile, breathe, and go slowly.', author: 'Thich Nhat Hanh', voice: 'quote_4' },
+        { text: 'Almost everything will work again<br>if you unplug it for a few minutes.<br>Including you.', author: 'Anne Lamott', voice: 'quote_5' },
+        { text: 'Within you there is a stillness<br>and a sanctuary to which you can retreat<br>at any time.', author: 'Hermann Hesse', voice: 'quote_6' },
+        { text: 'When you realize nothing is lacking,<br>the whole world belongs to you.', author: 'Lao Tzu', voice: 'quote_7' },
+        { text: 'Life is available only<br>in the present moment.', author: 'Thich Nhat Hanh', voice: 'quote_8' },
+        { text: 'The mind is everything.<br>What you think, you become.', author: 'Buddha', voice: 'quote_9' },
+        { text: 'Peace comes from within.<br>Do not seek it without.', author: 'Buddha', voice: 'quote_10' },
+        { text: 'The present moment is filled with joy<br>and happiness. If you are attentive,<br>you will see it.', author: 'Thich Nhat Hanh', voice: 'quote_11' },
+        { text: 'In today\'s rush, we all think too much,<br>seek too much, want too much.<br>And forget about the joy of just being.', author: 'Eckhart Tolle', voice: 'quote_12' },
+        { text: 'Your calm mind is the ultimate weapon<br>against your challenges.', author: 'Bryant McGill', voice: 'quote_13' },
+        { text: 'Nothing can bring you peace<br>but yourself.', author: 'Ralph Waldo Emerson', voice: 'quote_14' },
+        { text: 'Be still.<br>Stillness reveals the secrets of eternity.', author: 'Lao Tzu', voice: 'quote_15' },
+        { text: 'Wherever you are,<br>be there totally.', author: 'Eckhart Tolle', voice: 'quote_16' },
+        { text: 'The best time to relax is<br>when you don\'t have time for it.', author: 'Sydney Harris', voice: 'quote_17' },
+        { text: 'Breathing in, I calm body and mind.<br>Breathing out, I smile.', author: 'Thich Nhat Hanh', voice: 'quote_18' },
+        { text: 'Let go of the thoughts<br>that don\'t make you strong.', author: 'Karen Salmansohn', voice: 'quote_19' },
+    ];
+
+    // ─── Life Lessons (76 total — no repeat until all exhausted) ──
+    const LESSONS = [
+        // Japanese
+        { text: 'Wabi-sabi teaches us that nothing lasts,<br>nothing is finished, and nothing is perfect.<br>And that is beautiful.', source: 'Wabi-Sabi', voice: 'lesson_wabisabi' },
+        { text: 'Ikigai. Your reason for being.<br>It is not found. It is lived,<br>one small moment at a time.', source: 'Ikigai', voice: 'lesson_ikigai' },
+        { text: 'In Japan, broken pottery is repaired with gold.<br>Your cracks are not flaws.<br>They are where the light enters.', source: 'Kintsugi', voice: 'lesson_kintsugi' },
+        { text: 'Kaizen. One percent better, every single day.<br>Not a revolution. A quiet evolution.<br>That is how mountains are moved.', source: 'Kaizen', voice: 'lesson_kaizen' },
+        { text: 'Shoshin. Beginner\'s mind.<br>In the beginner\'s mind there are infinite possibilities.<br>In the expert\'s mind, there are few.', source: 'Shoshin', voice: 'lesson_shoshin' },
+        { text: 'Mono no aware.<br>The cherry blossom is not beautiful despite its short life.<br>It is beautiful because of it.', source: 'Mono no Aware', voice: 'lesson_mono_no_aware' },
+        { text: 'Everything in the universe<br>is connected by invisible threads.<br>Your actions today ripple outward in ways you cannot imagine.', source: 'Musubi', voice: 'lesson_musubi' },
+        // Indian / Sanskrit
+        { text: 'Ahimsa. Non-violence. Not just in action, but in thought.<br>Be gentle with yourself.<br>You are doing harder things than you realize.', source: 'Ahimsa', voice: 'lesson_ahimsa' },
+        { text: 'Dharma is not what you do for a living.<br>It is what you were born to do.<br>When your work and your soul align, effort becomes joy.', source: 'Dharma', voice: 'lesson_dharma' },
+        { text: 'Sthira sukham asanam.<br>Steady and comfortable. In yoga, in life.<br>Find the balance between effort and ease.', source: 'Yoga Sutras', voice: 'lesson_sthira_sukham' },
+        { text: 'Neti neti. Not this, not that.<br>You are not your thoughts. You are not your fears.<br>You are the awareness behind them. Vast. Still. Free.', source: 'Neti Neti', voice: 'lesson_neti_neti' },
+        { text: 'Vasudhaiva kutumbakam.<br>The whole world is one family.<br>The stranger\'s joy is your joy.', source: 'Maha Upanishad', voice: 'lesson_vasudhaiva' },
+        { text: 'Deep within you, beneath all the noise,<br>there is ananda. Bliss.<br>Not happiness that depends on things going right. Bliss that simply is.', source: 'Ananda', voice: 'lesson_ananda' },
+        // Stoic
+        { text: 'The impediment to action advances action.<br>What stands in the way becomes the way.<br>Your obstacle is not blocking your path. It is your path.', source: 'Marcus Aurelius', voice: 'lesson_obstacle' },
+        { text: 'Memento mori. Remember that you will die.<br>Not to be morbid.<br>But to be alive. Truly, urgently, beautifully alive.', source: 'Memento Mori', voice: 'lesson_memento_mori' },
+        { text: 'Amor fati. Love your fate.<br>Not just accept what happens. Love it.<br>Every setback. Every detour. It is all building something.', source: 'Amor Fati', voice: 'lesson_amor_fati' },
+        { text: 'You cannot control the wind.<br>But you can adjust your sails.<br>Focus only on what is within your power. Release everything else.', source: 'Epictetus', voice: 'lesson_dichotomy' },
+        { text: 'No one can take your peace<br>unless you hand it to them.<br>Your mind is a citadel. Guard the gate.', source: 'Marcus Aurelius', voice: 'lesson_inner_citadel' },
+        // Buddhist
+        { text: 'You have survived every single bad day so far.<br>Your track record for getting through hard things<br>is one hundred percent.', source: '', voice: 'lesson_beginner' },
+        { text: 'The middle way. Not too tight, not too loose.<br>Like tuning a guitar string.<br>Find the tension that makes beautiful music.', source: 'Buddha', voice: 'lesson_middle_way' },
+        { text: 'An empty cup can be filled.<br>An empty room can hold anything.<br>Your emptiness is not a void. It is possibility.', source: '', voice: 'lesson_emptiness' },
+        { text: 'Before you speak,<br>let your words pass through three gates.<br>Is it true? Is it necessary? Is it kind?', source: 'Sufi Proverb', voice: 'lesson_compassion' },
+        { text: 'Pain is inevitable. Suffering is optional.<br>Pain is the event.<br>Suffering is the story you tell yourself about it.', source: 'Buddhist Teaching', voice: 'lesson_suffering' },
+        // Taoist
+        { text: 'In every darkness, there is a seed of light.<br>In every failure, the beginning of wisdom.<br>Trust the rhythm.', source: 'Yin Yang', voice: 'lesson_yin_yang' },
+        { text: 'Simplify. Then simplify again.<br>Freedom is not having everything.<br>It is needing less.', source: 'Taoism', voice: 'lesson_simplicity' },
+        { text: 'Before you were shaped by the world\'s expectations,<br>you were whole.<br>The uncarved block is already perfect.', source: 'Pu — Taoism', voice: 'lesson_uncarved' },
+        { text: 'The valley receives all rivers<br>because it is lower than them.<br>Humility is not weakness. It is the deepest strength.', source: 'Lao Tzu', voice: 'lesson_valley' },
+        { text: 'The river does not push. It simply flows.<br>When you stop forcing,<br>life begins to carry you.', source: 'Wu Wei', voice: 'lesson_surrender' },
+        // African
+        { text: 'Ubuntu. I am because we are.<br>You are not alone in this.<br>Your struggles, your joy, they belong to all of us.', source: 'Ubuntu', voice: 'lesson_ubuntu' },
+        { text: 'The baobab tree stores water in its trunk<br>for the dry seasons ahead.<br>Build reserves of peace now. You will need them later.', source: 'African Wisdom', voice: 'lesson_baobab' },
+        // Sufi / Persian
+        { text: 'The wound is the place<br>where the light enters you.<br>Do not hide your scars. They are proof that you chose to keep going.', source: 'Rumi', voice: 'lesson_rumi_wound' },
+        { text: 'What you seek is seeking you.<br>Stop running. Be still.<br>Let it find you.', source: 'Rumi', voice: 'lesson_rumi_seek' },
+        { text: 'This being human is a guest house.<br>Every morning a new arrival.<br>A joy, a depression. Welcome them all.', source: 'Rumi', voice: 'lesson_guest_house' },
+        // Universal
+        { text: 'Everything changes.<br>The breath you just took is already gone.<br>Let this remind you to be here, fully, now.', source: 'Anicca', voice: 'lesson_impermanence' },
+        { text: 'You are not behind. You are not broken.<br>You are exactly where you need to be.', source: '', voice: 'lesson_enoughness' },
+        { text: 'In the silence between two heartbeats,<br>the universe whispers.<br>Learn to listen.', source: '', voice: 'lesson_silence' },
+        { text: 'A tree with deep roots<br>laughs at storms.<br>Your stillness is your strength.', source: '', voice: 'lesson_roots' },
+        { text: 'Be like water.<br>Soft enough to flow.<br>Strong enough to carve through stone.', source: 'Bruce Lee', voice: 'lesson_water' },
+        { text: 'Yesterday is a memory. Tomorrow is a mystery.<br>This moment is a gift.<br>That is why it is called the present.', source: '', voice: 'lesson_present' },
+        { text: 'The moon does not fight the darkness. It simply shines.<br>You do not need to fight your shadows.<br>Just shine.', source: '', voice: 'lesson_moon' },
+        { text: 'You cannot rush a garden.<br>Seeds grow in their own time.<br>So does healing. So do you.', source: '', voice: 'lesson_garden' },
+        { text: 'The mountain does not move for the wind.<br>Sit like a mountain.<br>Steady. Rooted. Unshaken.', source: '', voice: 'lesson_mountain' },
+        { text: 'Letting go is not giving up.<br>It is making space<br>for something new to arrive.', source: '', voice: 'lesson_letting_go' },
+        { text: 'Before you chase more,<br>pause and feel what you already have.<br>Gratitude turns what you have into enough.', source: '', voice: 'lesson_gratitude' },
+        { text: 'Small daily actions compound into extraordinary results.<br>One page. One deep breath. One kind word.<br>Over time, these become everything.', source: '', voice: 'lesson_compound' },
+        { text: 'You are not stuck. You are in a season.<br>Winter is not forever.<br>The trees know this. Trust what is coming.', source: '', voice: 'lesson_seasons' },
+        { text: 'You did enough today. You are enough today.<br>Tomorrow will ask what tomorrow asks.<br>For now, rest.', source: '', voice: 'lesson_enough_today' },
+        { text: 'There is no rush.<br>The sun does not hurry to set. The tide does not rush to turn.<br>You are part of nature. Move at your own pace.', source: '', voice: 'lesson_no_rush' },
+        { text: 'Where attention goes, energy flows.<br>Choose carefully what you give your mind to.<br>Your attention is the most precious thing you own.', source: '', voice: 'lesson_attention' },
+        { text: 'Rest is not a reward for productivity.<br>Rest is how the soil recovers.<br>It is not laziness. It is wisdom.', source: '', voice: 'lesson_rest' },
+        { text: 'You cannot stop the waves.<br>But you can learn to surf.<br>Your job is to find your balance within the movement.', source: '', voice: 'lesson_waves' },
+        { text: 'Your breath is your anchor.<br>When everything is spinning, return to this.<br>In. Out. You are here. You are okay.', source: '', voice: 'lesson_anchor' },
+        { text: 'The world is a mirror.<br>What irritates you teaches you.<br>What inspires you reveals you.', source: '', voice: 'lesson_mirror' },
+        { text: 'You are not finished.<br>You are still being shaped.<br>The most beautiful pottery is made slowly, with patient hands.', source: '', voice: 'lesson_clay' },
+        { text: 'Stars cannot shine without darkness.<br>Your difficult seasons are not punishments.<br>They are the night sky that makes you visible.', source: '', voice: 'lesson_stars' },
+        { text: 'Be the bridge, not the wall.<br>Every person you meet is fighting a battle<br>you know nothing about. Lead with kindness.', source: '', voice: 'lesson_bridge' },
+        { text: 'A seed grows in the dark.<br>If you cannot see your progress,<br>it does not mean nothing is happening. Trust the process.', source: '', voice: 'lesson_seed_dark' },
+        { text: 'Every breath is a gift you did not earn.<br>Ten thousand breaths today.<br>Each one a small miracle you almost never notice.', source: '', voice: 'lesson_breath_gift' },
+        { text: 'The less you try to prove,<br>the more powerful you become.<br>Quiet confidence needs no audience.', source: '', voice: 'lesson_less_more' },
+        { text: 'Time is not money. Time is life.<br>Spend it on what makes you feel alive.<br>Everything else is noise.', source: '', voice: 'lesson_time' },
+        { text: 'Forgiveness is not a gift to the other person.<br>It is the key to your own prison.<br>Set yourself free.', source: '', voice: 'lesson_forgive' },
+    ];
+
+    // ─── State ──────────────────────────────────────────────
+    let active = false;
+    let sessionStart = 0;
+    let breathingRAF = null;
+
+    // ─── Easing ─────────────────────────────────────────────
+    function ease(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3) / 2; }
+
+    // ─── Breathing ──────────────────────────────────────────
+    // Voice cue map: phase → voice file name
+    const PHASE_VOICE = { 'in': 'breathe_in', 'hold_in': 'hold', 'out': 'breathe_out', 'hold_out': 'rest' };
+    // Random mindfulness cues spoken between breathing cycles
+    const MINDFUL_CUES = [
+        'cue_forehead', 'cue_shoulders', 'cue_tension', 'cue_ground',
+        'cue_space', 'cue_breath_deep', 'cue_body_soft', 'cue_present',
+        'cue_jaw', 'cue_hands', 'cue_letgo', 'cue_backstraight',
+        'cue_relax', 'cue_focus', 'cue_chest_open', 'cue_eyes_soft',
+        'cue_belly_breathe', 'cue_nothing_todo', 'cue_warmth', 'cue_smile'
+    ];
+    let lastVoicedPhase = '';
+    let breathCycleCount = 0;
+    let lastCueIndex = -1;
+
+    function runBreathing() {
+        const names = Object.keys(PATTERNS);
+        const pattern = PATTERNS[names[Math.floor(Math.random() * names.length)]];
+        const cycle = pattern.reduce((s, p) => s + p.d, 0);
+
+        circleEl.style.display = 'flex';
+        guidanceEl.style.display = 'none';
+        lastVoicedPhase = '';
+
+        // Wait 1.5s so "zen" title is visible before voice starts
+        setTimeout(() => playVoice('intro_breathing'), 1500);
+
+        function tick() {
+            if (!active) return;
+            const elapsed = (Date.now() - sessionStart) / 1000;
+            const pos = elapsed % cycle;
+            let off = 0;
+
+            for (const step of pattern) {
+                if (pos < off + step.d) {
+                    const prog = (pos - off) / step.d;
+                    const e = ease(prog);
+                    let sc;
+                    if (step.p === 'in') sc = 0.5 + 0.5 * e;
+                    else if (step.p === 'out') sc = 1.0 - 0.5 * e;
+                    else if (step.p === 'hold_in') sc = 1.0;
+                    else sc = 0.5;
+
+                    circleEl.style.transform = `scale(${sc})`;
+                    circleEl.style.borderColor = `var(--accent)`;
+                    circleEl.style.boxShadow = `0 0 ${40 + sc * 30}px var(--accent-glow), 0 0 ${80 + sc * 40}px var(--accent-glow), inset 0 0 ${40 + sc * 20}px var(--accent-glow)`;
+                    phaseTextEl.textContent = step.l;
+                    countdownEl.textContent = Math.ceil(step.d - (pos - off));
+
+                    // Play voice cue at each phase transition
+                    if (step.p !== lastVoicedPhase) {
+                        lastVoicedPhase = step.p;
+                        const voiceName = PHASE_VOICE[step.p];
+                        if (voiceName) playVoice(voiceName);
+
+                        // Every 3rd cycle, speak a random mindfulness cue on 'hold_in'
+                        if (step.p === 'in') breathCycleCount++;
+                        if (step.p === 'hold_in' && breathCycleCount > 0 && breathCycleCount % 3 === 0) {
+                            let idx;
+                            do { idx = Math.floor(Math.random() * MINDFUL_CUES.length); } while (idx === lastCueIndex);
+                            lastCueIndex = idx;
+                            setTimeout(() => playVoice(MINDFUL_CUES[idx]), 1500);
+                        }
+                    }
+                    break;
+                }
+                off += step.d;
+            }
+            breathingRAF = requestAnimationFrame(tick);
+        }
+        tick();
+    }
+
+    // ─── Body Scan ──────────────────────────────────────────
+    async function runBodyScan() {
+        circleEl.style.display = 'none';
+        guidanceEl.style.display = 'flex';
+
+        await playVoice('intro_body_scan');
+        const stepTime = (CONFIG.duration - 6) / BODY_SCAN.length;
+
+        for (const step of BODY_SCAN) {
+            if (!active) break;
+
+            guidanceEl.classList.remove('visible');
+            guidanceEl.innerHTML = `
+                <div class="region-label">${step.region}</div>
+                <div class="guidance-body">${step.text}</div>
+            `;
+            await sleep(100);
+            guidanceEl.classList.add('visible');
+
+            playVoice(step.voice);
+            await sleep(stepTime * 1000 - 1500);
+
+            guidanceEl.classList.remove('visible');
+            await sleep(1500);
+        }
+    }
+
+    // ─── Quotes ─────────────────────────────────────────────
+    async function runQuotes() {
+        circleEl.style.display = 'none';
+        guidanceEl.style.display = 'flex';
+
+        await playVoice('intro_quotes');
+        const selected = shuffle(QUOTES).slice(0, Math.min(4, Math.ceil(CONFIG.duration / 35)));
+        const quoteTime = (CONFIG.duration - 6) / selected.length;
+
+        for (const q of selected) {
+            if (!active) break;
+
+            guidanceEl.classList.remove('visible');
+            guidanceEl.innerHTML = `
+                <div class="quote-text">${q.text}</div>
+                <div class="quote-author">— ${q.author}</div>
+                <div class="reflection">sit with this for a moment</div>
+            `;
+            await sleep(100);
+            guidanceEl.classList.add('visible');
+
+            // Speak the quote
+            await playVoice(q.voice);
+            await sleep(2000);
+            await playVoice('reflect');
+            await sleep(quoteTime * 1000 - 6000);
+
+            guidanceEl.classList.remove('visible');
+            await sleep(2000);
+        }
+    }
+
+    // ─── Gratitude ─────────────────────────────────────────
+    async function runGratitude() {
+        circleEl.style.display = 'none';
+        guidanceEl.style.display = 'flex';
+        const steps = ['grat_person','grat_thing','grat_body','grat_breath','grat_alive','grat_challenge','grat_simple','grat_send'];
+        const stepTime = (CONFIG.duration - 8) / steps.length;
+
+        await playVoice('intro_gratitude');
+        await sleep(1500);
+
+        for (const step of steps) {
+            if (!active) break;
+            guidanceEl.classList.remove('visible');
+            await sleep(300);
+            guidanceEl.innerHTML = '<div class="guidance-body" style="line-height:2.2;"></div>';
+            guidanceEl.classList.add('visible');
+            await playVoice(step);
+            await sleep(stepTime * 1000 - 2000);
+            guidanceEl.classList.remove('visible');
+            await sleep(1000);
+        }
+    }
+
+    // ─── Visualization ────────────────────────────────────
+    async function runVisualization() {
+        circleEl.style.display = 'none';
+        guidanceEl.style.display = 'flex';
+        const steps = ['vis_light_top','vis_light_face','vis_light_shoulders','vis_light_chest','vis_light_belly','vis_light_legs','vis_whole','vis_expand'];
+        const stepTime = (CONFIG.duration - 8) / steps.length;
+
+        await playVoice('intro_visual');
+        await sleep(1500);
+
+        for (const step of steps) {
+            if (!active) break;
+            guidanceEl.classList.remove('visible');
+            await sleep(300);
+            guidanceEl.innerHTML = '<div class="guidance-body" style="line-height:2.2;"></div>';
+            guidanceEl.classList.add('visible');
+            await playVoice(step);
+            await sleep(stepTime * 1000 - 2000);
+            guidanceEl.classList.remove('visible');
+            await sleep(1000);
+        }
+    }
+
+    // ─── Loving-Kindness (Metta) ──────────────────────────
+    async function runMetta() {
+        circleEl.style.display = 'none';
+        guidanceEl.style.display = 'flex';
+        const steps = [
+            {v:'metta_self_happy', pause:3000}, {v:'metta_self_peace', pause:3000},
+            {v:'metta_self_safe', pause:3000}, {v:'metta_self_free', pause:5000},
+            {v:'metta_loved', pause:8000}, {v:'metta_neutral', pause:8000},
+            {v:'metta_difficult', pause:8000}, {v:'metta_all', pause:6000},
+        ];
+
+        await playVoice('intro_metta');
+        await sleep(2000);
+
+        for (const step of steps) {
+            if (!active) break;
+            guidanceEl.classList.remove('visible');
+            await sleep(300);
+            guidanceEl.innerHTML = '<div class="guidance-body" style="line-height:2.2;"></div>';
+            guidanceEl.classList.add('visible');
+            await playVoice(step.v);
+            await sleep(step.pause);
+        }
+    }
+
+    // ─── Affirmation ──────────────────────────────────────
+    async function runAffirmation() {
+        circleEl.style.display = 'none';
+        guidanceEl.style.display = 'flex';
+        const steps = ['affirm_enough','affirm_capable','affirm_peace','affirm_let_go','affirm_worthy','affirm_grow','affirm_strong','affirm_present','affirm_trust'];
+        const stepTime = (CONFIG.duration - 8) / steps.length;
+
+        await playVoice('intro_affirm');
+        await sleep(1500);
+
+        for (const step of steps) {
+            if (!active) break;
+            guidanceEl.classList.remove('visible');
+            await sleep(300);
+            guidanceEl.innerHTML = '<div class="guidance-body" style="line-height:2.2;"></div>';
+            guidanceEl.classList.add('visible');
+            await playVoice(step);
+            await sleep(stepTime * 1000 - 2000);
+            guidanceEl.classList.remove('visible');
+            await sleep(1000);
+        }
+    }
+
+    // ─── Session lifecycle ──────────────────────────────────
+    function beginSession() {
+        startOverlay.classList.add('hidden');
+
+        // Play nature audio from extracted MP3 file (video stays muted for visuals)
+        if (USE_VIDEO_AUDIO && AUDIO_PATH) {
+            window._bgAudio = new Audio(AUDIO_PATH);
+            window._bgAudio.loop = true;
+            window._bgAudio.volume = 0;
+            window._bgAudio.play().then(() => {
+                // Fade in to 0.35
+                let vol = 0;
+                const fadeIn = setInterval(() => {
+                    vol += 0.007;
+                    if (vol >= 0.35) { window._bgAudio.volume = 0.35; clearInterval(fadeIn); return; }
+                    window._bgAudio.volume = vol;
+                }, 50);
+            }).catch(() => {
+                // Fallback to Web Audio synthesis
+                startSound();
+            });
+        } else {
+            startSound();
+        }
+        initScene();
+
+        // Request fullscreen for immersive experience
+        try { document.documentElement.requestFullscreen(); } catch(e) {}
+
+        // Show "zen" title and speak it first
+        setTimeout(() => {
+            meditationEl.classList.add('visible');
+            skipBtn.classList.add('visible');
+            // Brief pause for "zen" title to show, then start exercise
+            sleep(1000).then(() => {
+                active = true;
+                sessionStart = Date.now();
+                if (CONFIG.type === 'breathing') runBreathing();
+                else if (CONFIG.type === 'body_scan') runBodyScan();
+                else if (CONFIG.type === 'quotes') runQuotes();
+                else if (CONFIG.type === 'gratitude') runGratitude();
+                else if (CONFIG.type === 'visualization') runVisualization();
+                else if (CONFIG.type === 'metta') runMetta();
+                else if (CONFIG.type === 'affirmation') runAffirmation();
+            });
+        }, 1500);
+    }
+
+    async function endSession() {
+        if (!active) return;
+        active = false;
+        if (breathingRAF) cancelAnimationFrame(breathingRAF);
+
+        // Fade out meditation UI
+        meditationEl.style.transition = 'opacity 2s ease';
+        meditationEl.style.opacity = 0;
+        skipBtn.style.opacity = 0;
+
+        // "Gently open your eyes"
+        await playVoice('outro');
+        await sleep(2000);
+
+        // Pick a lesson never seen before (tracked in localStorage)
+        let seen = [];
+        try { seen = JSON.parse(localStorage.getItem('zen_seen_lessons') || '[]'); } catch(e) {}
+        let unseen = LESSONS.filter((_, i) => !seen.includes(i));
+        if (unseen.length === 0) { seen = []; unseen = LESSONS; } // Reset cycle
+        const idx = LESSONS.indexOf(unseen[Math.floor(Math.random() * unseen.length)]);
+        seen.push(idx);
+        try { localStorage.setItem('zen_seen_lessons', JSON.stringify(seen)); } catch(e) {}
+        const lesson = LESSONS[idx];
+        meditationEl.style.display = 'none';
+
+        guidanceEl.style.display = 'flex';
+        guidanceEl.style.opacity = 0;
+        guidanceEl.innerHTML = `
+            <div class="quote-text" style="font-style:normal;font-size:1.3rem;">${lesson.text}</div>
+            ${lesson.source ? `<div class="quote-author">— ${lesson.source}</div>` : ''}
+        `;
+
+        // Fade in lesson
+        completionEl.style.display = 'flex';
+        completionEl.innerHTML = '';
+        completionEl.appendChild(guidanceEl);
+        completionEl.style.opacity = 0;
+        await sleep(100);
+        completionEl.style.opacity = 1;
+        guidanceEl.style.opacity = 1;
+
+        // Speak the lesson
+        await playVoice(lesson.voice);
+
+        // Hold for a few seconds to let it sink in
+        await sleep(5000);
+
+        // Fade out everything
+        completionEl.style.transition = 'opacity 3s ease';
+        completionEl.style.opacity = 0;
+        fadeOutSound();
+
+        await sleep(4000);
+        try { window.close(); } catch(e) {}
+    }
+
+    // ─── Animation loop ─────────────────────────────────────
+    function loop(t) {
+        drawScene(t);
+        if (active) {
+            const elapsed = (Date.now() - sessionStart) / 1000;
+            const rem = Math.max(0, CONFIG.duration - elapsed);
+            const m = Math.floor(rem / 60);
+            const s = Math.floor(rem % 60);
+            timerEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
+            progressFill.style.width = `${(elapsed / CONFIG.duration) * 100}%`;
+            if (rem <= 0) endSession();
+        }
+        requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    // ─── Keyboard ───────────────────────────────────────────
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' || e.key === 'q' || e.key === ' ') endSession();
+    });
+
+    // ─── Utilities ──────────────────────────────────────────
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    function shuffle(a) {
+        const b = [...a];
+        for (let i = b.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [b[i], b[j]] = [b[j], b[i]];
+        }
+        return b;
+    }
+    </script>
+</body>
+</html>
