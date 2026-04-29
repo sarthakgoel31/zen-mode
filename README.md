@@ -2,6 +2,14 @@
 
 **Guided meditation for developers, right inside your terminal.**
 
+<p align="center">
+  <img src="docs/zen-meditation-player.png" alt="Zen Mode meditation player" width="700" />
+</p>
+
+<p align="center">
+  <img src="docs/zen-mode-card.png" alt="Zen Mode skill card" width="500" />
+</p>
+
 ## What It Does
 
 Zen Mode launches a full-featured meditation player in your browser from a single Claude Code slash command. It supports 7 meditation types, 9 nature themes, and custom durations -- all backed by real ambient videos, nature sounds, and ElevenLabs-generated voice guidance. No apps to install, no accounts to create. Just type `/zen` and breathe.
