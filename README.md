@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="Zen Mode Logo" width="120" />
+</p>
+
 # Zen Mode
 
 **Guided meditation for developers, right inside your terminal.**
