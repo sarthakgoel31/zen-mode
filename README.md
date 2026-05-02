@@ -2,6 +2,13 @@
   <img src="logo.png" alt="Zen Mode Logo" width="120" />
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/platform-macOS-000000?logo=apple" alt="macOS" />
+  <img src="https://img.shields.io/badge/python-3-3776AB?logo=python&logoColor=white" alt="Python 3" />
+  <img src="https://img.shields.io/badge/Claude_Code-integrated-6B5CE7" alt="Claude Code" />
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License MIT" />
+</p>
+
 # Zen Mode
 
 **Auto-triggered meditation for developers. Detects when you're idle, pops up a mindful break with nature videos, cultural wisdom, and guided breathing.**
