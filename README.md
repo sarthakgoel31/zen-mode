@@ -106,6 +106,71 @@ zen-mode/
 | Breathing patterns | Box, 4-7-8, Coherent |
 | Apple Watch biometrics | Complete |
 
+## Fork This
+
+Add Zen Mode to your Claude Code setup. macOS only (uses `osascript` for popups).
+
+### Prerequisites
+
+- [Claude Code](https://claude.ai/code) installed
+- macOS (for native popup dialogs)
+- Python 3 (for the meditation engine)
+- A web browser (Chrome, Safari, or Firefox)
+
+### Install
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/sarthakgoel31/zen-mode.git
+
+# 2. Copy the engine into Claude Code scripts
+mkdir -p ~/.claude/scripts/zen
+cp -r zen-mode/scripts/zen/* ~/.claude/scripts/zen/
+
+# 3. Copy the skill definition
+mkdir -p ~/.claude/skills/zen
+cp zen-mode/SKILL.md ~/.claude/skills/zen/SKILL.md
+
+# 4. Make the trigger executable
+chmod +x ~/.claude/scripts/zen/trigger.sh
+
+# 5. Test it
+# In Claude Code, type: /zen
+```
+
+### Enable Auto-Trigger
+
+To get the "detects idle and pops up a meditation" behavior, add a PostToolUse hook in your Claude Code settings:
+
+```json
+// In ~/.claude/settings.json, add to hooks:
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "command": "~/.claude/scripts/zen/trigger.sh",
+        "description": "Zen mode idle detection"
+      }
+    ]
+  }
+}
+```
+
+### What's Included
+
+All media files are bundled -- no API keys needed at runtime:
+- 9 nature video loops (MP4)
+- 9 ambient soundscapes (MP3)
+- 171 pre-generated voice guidance clips (ElevenLabs)
+- 76 cultural wisdom quotes (Buddhist, Stoic, Hindu, Zen, Tao)
+
+### Customize
+
+- **Trigger thresholds** -- edit `trigger.sh`: idle time (default 45s), cooldown (default 25 min), probability (default 12%)
+- **Themes** -- add your own MP4 video loops to `videos/` and register in `config.json`
+- **Meditation types** -- edit modules in `modules/` to add your own guided sessions
+- **Voice** -- replace clips in `voice/` with your own TTS (or use the included ones)
+
 ---
 
 Built by [Sarthak Goel](https://github.com/sarthakgoel31) with [Claude Code](https://claude.ai/code)
