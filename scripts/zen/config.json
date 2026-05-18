@@ -13,8 +13,8 @@
     "body_scan",
     "quotes"
   ],
-  "elevenlabs_api_key": "REDACTED",
-  "elevenlabs_voice_id": "REDACTED",
+  "elevenlabs_api_key": "YOUR_ELEVENLABS_API_KEY",
+  "elevenlabs_voice_id": "YOUR_ELEVENLABS_VOICE_ID",
   "breathing_patterns": {
     "box": {
       "in": 4,
