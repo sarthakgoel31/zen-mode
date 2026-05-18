@@ -9,7 +9,7 @@ Setup:
   3. Run: ELEVENLABS_API_KEY=your_key python3 generate_voices.py
      Or put the key in zen/config.json under "elevenlabs_api_key"
 
-Voice: Custom voice ID wdymxIQkYn7MJCYCQF2Q (serene, deep, calm female)
+Voice: Set ELEVENLABS_VOICE_ID env var or update VOICE_ID below
 """
 
 import json
@@ -21,7 +21,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 VOICE_DIR = os.path.join(SCRIPT_DIR, "voice")
 CONFIG_PATH = os.path.join(SCRIPT_DIR, "config.json")
 
-VOICE_ID = "wdymxIQkYn7MJCYCQF2Q"
+VOICE_ID = os.environ.get("ELEVENLABS_VOICE_ID", "YOUR_VOICE_ID")
 MODEL_ID = "eleven_multilingual_v2"
 API_URL = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}"
 
