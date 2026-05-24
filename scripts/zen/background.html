@@ -18,7 +18,9 @@
             top: 0; left: 0;
             width: 100%; height: 100%;
             object-fit: cover;
+            transition: opacity 1.6s linear;
         }
+        #bg-b { opacity: 0; }
         #start {
             position: fixed;
             inset: 0;
@@ -41,43 +43,125 @@
     </style>
 </head>
 <body>
-    <video id="bg" loop playsinline></video>
+    <video id="bg-a" playsinline muted></video>
+    <video id="bg-b" playsinline muted></video>
     <div id="start" onclick="begin()"><p>tap to begin</p></div>
 
     <script>const VIDEO_PATH = '';</script>
     <script>const AUDIO_PATH = '';</script>
 
     <script>
-    const vid = document.getElementById('bg');
-    if (VIDEO_PATH) { vid.src = VIDEO_PATH; vid.muted = true; vid.play().catch(()=>{}); }
+    const FADE_VIDEO_MS = 1600;
+    const FADE_AUDIO_MS = 2000;
+
+    // ── Seamless video crossfade loop ───────────────────────
+    function setupSeamlessVideo(url) {
+        if (!url) return;
+        const a = document.getElementById('bg-a');
+        const b = document.getElementById('bg-b');
+        a.src = b.src = url;
+        a.muted = b.muted = true;
+        let active = a, inactive = b;
+        active.style.opacity = 1;
+        inactive.style.opacity = 0;
+        active.play().catch(()=>{});
+        let swapping = false;
+        function tick() {
+            const d = active.duration;
+            if (d && isFinite(d) && !swapping) {
+                const rem = d - active.currentTime;
+                if (rem <= FADE_VIDEO_MS / 1000) {
+                    swapping = true;
+                    inactive.currentTime = 0;
+                    inactive.play().then(() => {
+                        inactive.style.opacity = 1;
+                        active.style.opacity = 0;
+                        setTimeout(() => {
+                            try { active.pause(); active.currentTime = 0; } catch(e) {}
+                            [active, inactive] = [inactive, active];
+                            swapping = false;
+                        }, FADE_VIDEO_MS);
+                    }).catch(() => { swapping = false; });
+                }
+            }
+            requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+    }
+
+    // ── Seamless audio crossfade loop ───────────────────────
+    function fadeAudio(audio, from, to, ms, onDone) {
+        const start = performance.now();
+        function step() {
+            const t = Math.min(1, (performance.now() - start) / ms);
+            audio.volume = Math.max(0, Math.min(1, from + (to - from) * t));
+            if (t < 1) requestAnimationFrame(step);
+            else if (onDone) onDone();
+        }
+        requestAnimationFrame(step);
+    }
+
+    function setupSeamlessAudio(url, targetVolume, fadeInMs) {
+        if (!url) return null;
+        const a = new Audio(url);
+        const b = new Audio(url);
+        a.preload = b.preload = 'auto';
+        a.volume = b.volume = 0;
+        let active = a, inactive = b;
+        let target = targetVolume;
+        let swapping = false;
+        let stopped = false;
+
+        active.play().then(() => {
+            fadeAudio(active, 0, target, fadeInMs || 2500);
+        }).catch(() => {});
+
+        function tick() {
+            if (stopped) return;
+            const d = active.duration;
+            if (d && isFinite(d) && !swapping) {
+                const rem = d - active.currentTime;
+                if (rem <= FADE_AUDIO_MS / 1000) {
+                    swapping = true;
+                    inactive.currentTime = 0;
+                    inactive.volume = 0;
+                    inactive.play().then(() => {
+                        fadeAudio(inactive, 0, target, FADE_AUDIO_MS);
+                        fadeAudio(active, active.volume, 0, FADE_AUDIO_MS, () => {
+                            try { active.pause(); active.currentTime = 0; } catch(e) {}
+                            [active, inactive] = [inactive, active];
+                            swapping = false;
+                        });
+                    }).catch(() => { swapping = false; });
+                }
+            }
+            requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+
+        return {
+            stop(ms) {
+                stopped = true;
+                fadeAudio(active, active.volume, 0, ms || 1500, () => { try { active.pause(); } catch(e) {} });
+                try { inactive.pause(); } catch(e) {}
+            },
+        };
+    }
+
+    // Start video immediately (muted autoplay allowed)
+    setupSeamlessVideo(VIDEO_PATH);
 
     function begin() {
         document.getElementById('start').classList.add('hidden');
-        // Play audio
         if (AUDIO_PATH) {
-            window._bg = new Audio(AUDIO_PATH);
-            window._bg.loop = true;
-            window._bg.volume = 0;
-            window._bg.play().then(() => {
-                let v = 0;
-                const fi = setInterval(() => {
-                    v += 0.005;
-                    if (v >= 0.5) { window._bg.volume = 0.5; clearInterval(fi); return; }
-                    window._bg.volume = v;
-                }, 50);
-            });
+            window._bg = setupSeamlessAudio(AUDIO_PATH, 0.5, 2500);
         }
-        // Unmute video too (in case audio is in video)
-        vid.muted = false;
-        vid.volume = 0.5;
-        vid.play();
-        // Fullscreen
         try { document.documentElement.requestFullscreen(); } catch(e) {}
     }
 
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape' || e.key === 'q') {
-            if (window._bg) { window._bg.pause(); }
+            if (window._bg) window._bg.stop(800);
             try { window.close(); } catch(e) {}
         }
     });

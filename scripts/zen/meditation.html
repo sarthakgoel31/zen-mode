@@ -57,16 +57,16 @@
         }
 
         /* ── Video background ─────────────────────── */
-        #video-bg {
+        .video-bg {
             position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
             object-fit: cover;
             z-index: 0;
             opacity: 0;
-            transition: opacity 2s ease;
+            transition: opacity 1.8s linear;
         }
-        #video-bg.loaded { opacity: 1; }
+        #video-bg-a.loaded { opacity: 1; }
 
         #video-overlay {
             position: fixed;
@@ -290,7 +290,8 @@
     </style>
 </head>
 <body>
-    <video id="video-bg" autoplay loop muted playsinline></video>
+    <video id="video-bg-a" class="video-bg" autoplay muted playsinline></video>
+    <video id="video-bg-b" class="video-bg" muted playsinline></video>
     <div id="video-overlay"></div>
     <canvas id="nature-canvas"></canvas>
 
@@ -350,13 +351,102 @@
     const startOverlay = document.getElementById('start-overlay');
     const skipBtn = document.getElementById('skip-btn');
 
-    // ─── Video background ────────────────────────────────────
-    const videoBg = document.getElementById('video-bg');
-    if (VIDEO_PATH) {
-        videoBg.src = VIDEO_PATH;
-        // Video starts muted via HTML autoplay attribute (plays visually)
-        videoBg.addEventListener('canplay', () => videoBg.classList.add('loaded'));
-        videoBg.addEventListener('error', () => { /* canvas fallback */ });
+    // ─── Video background (seamless crossfade loop) ──────────
+    const FADE_VIDEO_MS = 1800;
+    const FADE_AUDIO_MS = 2200;
+
+    function setupSeamlessVideo(url) {
+        if (!url) return;
+        const a = document.getElementById('video-bg-a');
+        const b = document.getElementById('video-bg-b');
+        a.src = b.src = url;
+        a.muted = b.muted = true;
+        let active = a, inactive = b;
+        a.addEventListener('canplay', () => a.classList.add('loaded'), { once: true });
+        active.play().catch(() => {});
+        let swapping = false;
+        function tick() {
+            const d = active.duration;
+            if (d && isFinite(d) && !swapping) {
+                const rem = d - active.currentTime;
+                if (rem <= FADE_VIDEO_MS / 1000) {
+                    swapping = true;
+                    inactive.currentTime = 0;
+                    inactive.play().then(() => {
+                        inactive.style.opacity = 1;
+                        active.style.opacity = 0;
+                        setTimeout(() => {
+                            try { active.pause(); active.currentTime = 0; } catch(e) {}
+                            [active, inactive] = [inactive, active];
+                            swapping = false;
+                        }, FADE_VIDEO_MS);
+                    }).catch(() => { swapping = false; });
+                }
+            }
+            requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+    }
+    setupSeamlessVideo(VIDEO_PATH);
+
+    // ─── Seamless audio crossfade helper ─────────────────────
+    function fadeAudio(audio, from, to, ms, onDone) {
+        const start = performance.now();
+        function step() {
+            const t = Math.min(1, (performance.now() - start) / ms);
+            audio.volume = Math.max(0, Math.min(1, from + (to - from) * t));
+            if (t < 1) requestAnimationFrame(step);
+            else if (onDone) onDone();
+        }
+        requestAnimationFrame(step);
+    }
+
+    function setupSeamlessAudio(url, targetVolume, fadeInMs) {
+        if (!url) return null;
+        const a = new Audio(url);
+        const b = new Audio(url);
+        a.preload = b.preload = 'auto';
+        a.volume = b.volume = 0;
+        let active = a, inactive = b;
+        let swapping = false;
+        let stopped = false;
+
+        const startPromise = active.play().then(() => {
+            fadeAudio(active, 0, targetVolume, fadeInMs || 2500);
+        });
+
+        function tick() {
+            if (stopped) return;
+            const d = active.duration;
+            if (d && isFinite(d) && !swapping) {
+                const rem = d - active.currentTime;
+                if (rem <= FADE_AUDIO_MS / 1000) {
+                    swapping = true;
+                    inactive.currentTime = 0;
+                    inactive.volume = 0;
+                    inactive.play().then(() => {
+                        fadeAudio(inactive, 0, targetVolume, FADE_AUDIO_MS);
+                        fadeAudio(active, active.volume, 0, FADE_AUDIO_MS, () => {
+                            try { active.pause(); active.currentTime = 0; } catch(e) {}
+                            [active, inactive] = [inactive, active];
+                            swapping = false;
+                        });
+                    }).catch(() => { swapping = false; });
+                }
+            }
+            requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+
+        return {
+            promise: startPromise,
+            stop(ms) {
+                stopped = true;
+                const dur = ms || 3000;
+                fadeAudio(active, active.volume, 0, dur, () => { try { active.pause(); } catch(e) {} });
+                try { inactive.pause(); } catch(e) {}
+            },
+        };
     }
 
     // ─── Canvas resize ──────────────────────────────────────
@@ -551,13 +641,8 @@
             setTimeout(() => { try { audioCtx.close(); } catch(e) {} }, 4000);
         }
         // Fade out background nature audio
-        if (window._bgAudio) {
-            let vol = window._bgAudio.volume;
-            const fadeOut = setInterval(() => {
-                vol -= 0.01;
-                if (vol <= 0) { window._bgAudio.pause(); clearInterval(fadeOut); return; }
-                window._bgAudio.volume = vol;
-            }, 50);
+        if (window._bgAudio && typeof window._bgAudio.stop === 'function') {
+            window._bgAudio.stop(3000);
         }
     }
 
@@ -930,21 +1015,12 @@
 
         // Play nature audio from extracted MP3 file (video stays muted for visuals)
         if (USE_VIDEO_AUDIO && AUDIO_PATH) {
-            window._bgAudio = new Audio(AUDIO_PATH);
-            window._bgAudio.loop = true;
-            window._bgAudio.volume = 0;
-            window._bgAudio.play().then(() => {
-                // Fade in to 0.35
-                let vol = 0;
-                const fadeIn = setInterval(() => {
-                    vol += 0.007;
-                    if (vol >= 0.35) { window._bgAudio.volume = 0.35; clearInterval(fadeIn); return; }
-                    window._bgAudio.volume = vol;
-                }, 50);
-            }).catch(() => {
-                // Fallback to Web Audio synthesis
+            window._bgAudio = setupSeamlessAudio(AUDIO_PATH, 0.35, 3000);
+            if (window._bgAudio) {
+                window._bgAudio.promise.catch(() => { startSound(); });
+            } else {
                 startSound();
-            });
+            }
         } else {
             startSound();
         }
